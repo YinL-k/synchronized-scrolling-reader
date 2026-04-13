@@ -1,4 +1,4 @@
-[English](README_en.md) | [中文](README.md)
+[English] | [中文](README.md)
 
 # VSCode‑style Side‑by‑Side Viewer
 
