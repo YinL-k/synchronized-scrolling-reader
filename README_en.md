@@ -1,4 +1,4 @@
-[English](README_en.md) | 中文
+[English](README_en.md) | [中文](README.md)
 
 # VSCode‑style Side‑by‑Side Viewer
 
@@ -16,7 +16,7 @@ This repository contains a self‑contained HTML file that implements a VSCode�
 ## Getting started
 
 1. Clone or download this repository.
-2. Open `Synchronized scrolling reader(1).html` in your browser.
+2. Open `Synchronized scrolling reader.html` in your browser.
 3. Use the toolbar to load your files by dragging them into each pane or using the file picker.
 4. Use the buttons on the toolbar to adjust font size, toggle themes or save your work.
 
