@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VSCode-style Side-by-Side Viewer</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --bg: #1e1e1e;
+      --panel: #252526;
+      --panel-2: #202124;
+      --header: #181818;
+      --panel-header: #202020;
+      --border: #3c3c3c;
+      --text: #d4d4d4;
+      --muted: #8a8a8a;
+      --accent: #0e639c;
+      --accent-strong: #1177bb;
+      --accent-soft: rgba(14, 99, 156, 0.18);
+      --button-bg: #2a2d35;
+      --button-hover: #323742;
+      --button-active: #383d49;
+      --border-strong: #454852;
+      --button-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+      --save-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+      --gutter-bg: #202124;
+      --gutter-text: #858585;
+      --line-highlight: rgba(255, 255, 255, 0.06);
+      --line-number-highlight: rgba(255, 255, 255, 0.06);
+      --scrollbar-track: #1a1a1a;
+      --scrollbar-thumb: #3b3b3b;
+      --scrollbar-thumb-hover: #515151;
+      --panel-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+
+      --code-font-size: 14px;
+      --code-line-height: 1.75;
+      --gutter-width: 4.6em;
+      --content-padding-x: 16px;
+      --content-padding-y: 14px;
+      --toolbar-font-size: 13px;
+
+      --token-comment: #6a9955;
+      --token-punctuation: #d4d4d4;
+      --token-property: #9cdcfe;
+      --token-selector: #d7ba7d;
+      --token-string: #ce9178;
+      --token-number: #b5cea8;
+      --token-keyword: #569cd6;
+      --token-function: #dcdcaa;
+      --token-operator: #d4d4d4;
+      --token-tag: #569cd6;
+      --token-attr-name: #9cdcfe;
+      --token-attr-value: #ce9178;
+      --token-inserted: #b5cea8;
+      --token-deleted: #ce9178;
+    }
+
+    :root[data-theme="light"] {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --panel-2: #f8fafe;
+      --header: #edf2fa;
+      --panel-header: #f7f9fc;
+      --border: #d8e0ec;
+      --text: #1f2937;
+      --muted: #667085;
+      --accent: #2563eb;
+      --accent-strong: #1d4ed8;
+      --accent-soft: rgba(37, 99, 235, 0.12);
+      --button-bg: #ffffff;
+      --button-hover: #eef4ff;
+      --button-active: #e5efff;
+      --border-strong: #c1cbda;
+      --button-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+      --save-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+      --gutter-bg: #f6f8fc;
+      --gutter-text: #7a869a;
+      --line-highlight: rgba(37, 99, 235, 0.08);
+      --line-number-highlight: rgba(37, 99, 235, 0.08);
+      --scrollbar-track: #eef2f8;
+      --scrollbar-thumb: #c3cedf;
+      --scrollbar-thumb-hover: #aab8cf;
+      --panel-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+
+      --token-comment: #6b7280;
+      --token-punctuation: #334155;
+      --token-property: #0f766e;
+      --token-selector: #b45309;
+      --token-string: #b45309;
+      --token-number: #0f766e;
+      --token-keyword: #2563eb;
+      --token-function: #7c3aed;
+      --token-operator: #334155;
+      --token-tag: #2563eb;
+      --token-attr-name: #0f766e;
+      --token-attr-value: #b45309;
+      --token-inserted: #047857;
+      --token-deleted: #dc2626;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Consolas, Monaco, 'SFMono-Regular', 'Cascadia Mono', 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans Mono CJK SC', 'Courier New', monospace;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 10px 14px;
+      background: var(--header);
+      border-bottom: 1px solid var(--border);
+      font-size: var(--toolbar-font-size);
+    }
+
+    .toolbar label,
+    .toolbar button,
+    .toolbar input,
+    .toolbar .font-size-display {
+      font: inherit;
+      color: var(--text);
+    }
+
+    .toolbar input[type="file"] {
+      max-width: 180px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .toolbar button {
+      padding: 7px 11px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--button-bg);
+      box-shadow: var(--button-shadow);
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.18s ease;
+    }
+
+    .toolbar button:hover {
+      background: var(--button-hover);
+      border-color: var(--border-strong);
+    }
+
+    .toolbar button:active {
+      transform: translateY(1px);
+      background: var(--button-active);
+    }
+
+    .toolbar-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: var(--button-shadow);
+    }
+
+    .font-size-display {
+      min-width: 50px;
+      text-align: center;
+      color: var(--muted);
+      user-select: none;
+    }
+
+    .toolbar button.theme-switch {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      min-width: 0;
+    }
+
+    .toolbar button.theme-switch:hover,
+    .toolbar button.theme-switch:active {
+      background: transparent;
+      border: 0;
+      border-color: transparent;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .toolbar button.theme-switch:focus,
+    .toolbar button.theme-switch:focus-visible {
+      outline: none;
+      border: 0;
+      box-shadow: none;
+    }
+
+    .theme-switch-track {
+      position: relative;
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      min-width: 118px;
+      height: 36px;
+      padding: 3px;
+      border-radius: 999px;
+      background: var(--panel);
+      box-shadow: var(--button-shadow);
+      overflow: hidden;
+    }
+
+    .theme-switch-option {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      user-select: none;
+      transition: color 0.18s ease;
+    }
+
+    .theme-switch-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: calc(50% - 3px);
+      height: calc(100% - 6px);
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+      transition: transform 0.22s cubic-bezier(.2,.9,.2,1), background 0.18s ease;
+    }
+
+    :root[data-theme="dark"] .theme-switch-option-dark,
+    :root[data-theme="light"] .theme-switch-option-light {
+      color: #ffffff;
+    }
+
+    :root[data-theme="dark"] .theme-switch-option-light,
+    :root[data-theme="light"] .theme-switch-option-dark {
+      color: var(--muted);
+    }
+
+    :root[data-theme="dark"] .theme-switch-thumb {
+      transform: translateX(100%);
+    }
+
+    .hint {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+
+    .file-picker {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .file-picker input[type="file"] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      max-width: none;
+    }
+
+    .file-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 11px;
+      min-height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--button-bg);
+      color: var(--text);
+      box-shadow: var(--button-shadow);
+      transition: background .15s ease, border-color .15s ease, transform .15s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .file-picker:hover .file-button {
+      background: var(--button-hover);
+      border-color: var(--border-strong);
+    }
+
+    .file-picker:active .file-button {
+      transform: translateY(1px);
+      background: var(--button-active);
+    }
+
+    .file-name-chip {
+      max-width: 120px;
+      padding: 0 2px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .viewer {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .panel {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--panel);
+      box-shadow: var(--panel-shadow);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-header);
+      font-size: 13px;
+    }
+
+    .panel-title { font-weight: 700; }
+
+    .lang-badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--button-bg);
+      color: var(--text);
+      font-size: 12px;
+      box-shadow: var(--button-shadow);
+    }
+
+    .drop-zone {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      background: var(--panel);
+    }
+
+    .drop-zone.dragover {
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 78%, transparent), var(--accent-soft));
+      outline: 2px dashed var(--accent);
+      outline-offset: -8px;
+    }
+
+    .drop-zone.dragover::after {
+      content: '';
+      position: absolute;
+      inset: 10px;
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), 0 0 0 999px rgba(0, 0, 0, 0.12);
+      pointer-events: none;
+      z-index: 7;
+    }
+
+    .drop-tip {
+      position: absolute;
+      inset: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      opacity: 0;
+      z-index: 8;
+      transition: opacity 0.18s ease, transform 0.18s ease, backdrop-filter 0.18s ease;
+      transform: scale(0.98);
+    }
+
+    .drop-tip-card {
+      min-width: min(360px, calc(100% - 40px));
+      max-width: 460px;
+      padding: 22px 26px;
+      border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+      border-radius: 18px;
+      background: color-mix(in srgb, var(--panel) 72%, rgba(255,255,255,0.05));
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+
+    .drop-tip-title {
+      font-size: 18px;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .drop-tip-subtitle {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .drop-zone.dragover .drop-tip {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .scroll-host {
+      position: absolute;
+      inset: 0;
+      overflow: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+      background: var(--panel);
+    }
+
+    .scroll-host::-webkit-scrollbar { width: 11px; height: 11px; }
+    .scroll-host::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+    .scroll-host::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: 999px;
+      border: 2px solid var(--scrollbar-track);
+    }
+    .scroll-host::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+    .scroll-host::-webkit-scrollbar-corner { background: var(--scrollbar-track); }
+
+    .editor-shell {
+      position: relative;
+      display: grid;
+      grid-template-columns: var(--gutter-width) minmax(0, max-content);
+      align-items: start;
+      width: max-content;
+      min-width: 100%;
+      min-height: 100%;
+    }
+
+    .line-gutter {
+      position: sticky;
+      left: 0;
+      z-index: 3;
+      min-height: 100%;
+      padding: var(--content-padding-y) 0;
+      border-right: 1px solid var(--border);
+      background: var(--gutter-bg);
+      text-align: right;
+      user-select: none;
+    }
+
+    .line-number {
+      display: block;
+      height: calc(var(--code-font-size) * var(--code-line-height));
+      line-height: calc(var(--code-font-size) * var(--code-line-height));
+      padding-right: 12px;
+      color: var(--gutter-text);
+      font-size: var(--code-font-size);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .line-number.active {
+      background: var(--line-highlight);
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .content-wrap {
+      position: relative;
+      min-width: 100%;
+      min-height: 100%;
+      width: 100%;
+      background: transparent;
+    }
+
+    .current-line-highlight {
+      position: absolute;
+      top: var(--content-padding-y);
+      left: calc(-1 * var(--gutter-width) - 120vw);
+      width: calc(100% + var(--gutter-width) + 240vw);
+      height: calc(var(--code-font-size) * var(--code-line-height));
+      background: var(--line-highlight);
+      pointer-events: none;
+      z-index: 1;
+      border-top: 1px solid rgba(255,255,255,0.02);
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+
+    pre.code-block,
+    textarea.editor-input {
+      margin: 0;
+      padding: var(--content-padding-y) var(--content-padding-x);
+      min-height: 100%;
+      min-width: 100%;
+      font-family: inherit;
+      font-size: var(--code-font-size);
+      line-height: var(--code-line-height);
+      tab-size: 2;
+      -moz-tab-size: 2;
+      white-space: pre;
+      word-break: normal;
+      overflow-wrap: normal;
+      text-wrap: nowrap;
+      font-variant-ligatures: none;
+      text-rendering: geometricPrecision;
+    }
+
+    pre.code-block {
+      position: relative;
+      z-index: 2;
+      background: transparent !important;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    pre.code-block code {
+      display: block;
+      min-height: calc(var(--code-font-size) * var(--code-line-height));
+      color: var(--text);
+    }
+
+    textarea.editor-input {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      border: 0;
+      outline: 0;
+      resize: none;
+      background: transparent;
+      color: transparent;
+      caret-color: var(--text);
+      overflow: hidden;
+    }
+
+    textarea.editor-input::selection {
+      background: rgba(128, 128, 128, 0.25);
+    }
+
+    .panel.empty .line-gutter { opacity: 0.78; }
+
+    .save-fab {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      z-index: 9;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--button-bg);
+      color: var(--text);
+      box-shadow: var(--save-shadow);
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(16px) scale(0.92);
+      transition: opacity 0.18s ease, transform 0.22s cubic-bezier(.2,.9,.2,1), background 0.15s ease, border-color 0.15s ease, box-shadow 0.18s ease;
+    }
+
+    .save-fab.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+
+    .save-fab:hover {
+      background: var(--button-hover);
+      border-color: var(--border-strong);
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+    }
+
+    .save-fab:active {
+      transform: translateY(1px) scale(0.985);
+      background: var(--button-active);
+    }
+
+    .save-fab .label {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .token.comment,
+    .token.prolog,
+    .token.doctype,
+    .token.cdata { color: var(--token-comment); }
+    .token.punctuation { color: var(--token-punctuation); }
+    .token.namespace { opacity: 0.7; }
+    .token.property,
+    .token.constant,
+    .token.symbol,
+    .token.deleted { color: var(--token-property); }
+    .token.boolean,
+    .token.number { color: var(--token-number); }
+    .token.selector,
+    .token.attr-name,
+    .token.string,
+    .token.char,
+    .token.builtin,
+    .token.inserted { color: var(--token-string); }
+    .token.operator,
+    .token.entity,
+    .token.url,
+    .language-css .token.string,
+    .style .token.string { color: var(--token-operator); }
+    .token.atrule,
+    .token.attr-value,
+    .token.keyword { color: var(--token-keyword); }
+    .token.function,
+    .token.class-name { color: var(--token-function); }
+    .token.regex,
+    .token.important,
+    .token.variable { color: var(--token-selector); }
+    .token.tag { color: var(--token-tag); }
+
+
+    @media (max-width: 900px) {
+      .viewer { grid-template-columns: 1fr; }
+      .hint { width: 100%; margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <label class="file-picker"><span class="file-button">Open Left File</span><span class="file-name-chip" id="leftPickerName">No file</span><input type="file" id="leftFile" accept=".txt,.js,.ts,.jsx,.tsx,.html,.css,.json,.py,.java,.c,.cpp,.h,.hpp,.go,.rs,.xml,.md,text/plain" /></label>
+    <label class="file-picker"><span class="file-button">Open Right File</span><span class="file-name-chip" id="rightPickerName">No file</span><input type="file" id="rightFile" accept=".txt,.js,.ts,.jsx,.tsx,.html,.css,.json,.py,.java,.c,.cpp,.h,.hpp,.go,.rs,.xml,.md,text/plain" /></label>
+    <button id="loadSample">Load Sample</button>
+    <button id="clearAll">Clear All</button>
+    <div class="toolbar-group" aria-label="Font size controls">
+      <button id="fontDecrease" type="button">A-</button>
+      <span class="font-size-display" id="fontSizeDisplay">14px</span>
+      <button id="fontIncrease" type="button">A+</button>
+    </div>
+    <button id="themeToggle" class="theme-switch" type="button" aria-label="Toggle theme" aria-pressed="false"><span class="theme-switch-track"><span class="theme-switch-option theme-switch-option-light">Light</span><span class="theme-switch-option theme-switch-option-dark">Dark</span><span class="theme-switch-thumb"></span></span></button>
+    <label>
+      <input type="checkbox" id="syncToggle" checked />
+      Sync Scroll
+    </label>
+    <span class="hint">Supports direct editing, current-line highlight, floating save buttons, light/dark mode, and strict sync scroll</span>
+  </div>
+
+  <div class="viewer">
+    <section class="panel" id="leftPanel">
+      <div class="panel-header">
+        <span class="panel-title">Left</span>
+        <span class="lang-badge" id="leftLang">TXT</span>
+      </div>
+      <div class="drop-zone" id="leftZone">
+        <div class="drop-tip"><div class="drop-tip-card"><div class="drop-tip-title">Drop file to open in the left pane</div><div class="drop-tip-subtitle">Release to load the file instantly and keep syntax highlighting, editing, and sync scroll.</div></div></div>
+        <div class="scroll-host" id="leftScroll">
+          <div class="editor-shell" id="leftShell">
+            <div class="line-gutter" id="leftGutter" aria-hidden="true"></div>
+            <div class="content-wrap" id="leftWrap">
+              <div class="current-line-highlight" id="leftCurrentLine"></div>
+              <pre class="code-block language-javascript"><code id="leftCode" class="language-javascript"></code></pre>
+              <textarea id="leftInput" class="editor-input" spellcheck="false" autocorrect="off" autocapitalize="off" wrap="off"></textarea>
+            </div>
+          </div>
+        </div>
+        <button class="save-fab" id="leftSave" type="button"><span class="label">Save</span></button>
+      </div>
+    </section>
+
+    <section class="panel" id="rightPanel">
+      <div class="panel-header">
+        <span class="panel-title">Right</span>
+        <span class="lang-badge" id="rightLang">TXT</span>
+      </div>
+      <div class="drop-zone" id="rightZone">
+        <div class="drop-tip"><div class="drop-tip-card"><div class="drop-tip-title">Drop file to open in the right pane</div><div class="drop-tip-subtitle">Release to load the file instantly and keep syntax highlighting, editing, and sync scroll.</div></div></div>
+        <div class="scroll-host" id="rightScroll">
+          <div class="editor-shell" id="rightShell">
+            <div class="line-gutter" id="rightGutter" aria-hidden="true"></div>
+            <div class="content-wrap" id="rightWrap">
+              <div class="current-line-highlight" id="rightCurrentLine"></div>
+              <pre class="code-block language-text"><code id="rightCode" class="language-text"></code></pre>
+              <textarea id="rightInput" class="editor-input" spellcheck="false" autocorrect="off" autocapitalize="off" wrap="off"></textarea>
+            </div>
+          </div>
+        </div>
+        <button class="save-fab" id="rightSave" type="button"><span class="label">Save</span></button>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-clike.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-typescript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-jsx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-tsx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-css.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-java.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-c.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-cpp.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-go.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-rust.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markdown.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-xml-doc.min.js"></script>
+
+  <script>
+    const STORAGE_KEYS = {
+      theme: 'sideBySideViewerTheme',
+      fontSize: 'sideBySideViewerFontSize'
+    };
+
+    const MIN_FONT_SIZE = 12;
+    const MAX_FONT_SIZE = 24;
+    const DEFAULT_FONT_SIZE = 14;
+
+    const root = document.documentElement;
+    const leftFile = document.getElementById('leftFile');
+    const rightFile = document.getElementById('rightFile');
+    const loadSample = document.getElementById('loadSample');
+    const clearAll = document.getElementById('clearAll');
+    const leftPickerName = document.getElementById('leftPickerName');
+    const rightPickerName = document.getElementById('rightPickerName');
+    const syncToggle = document.getElementById('syncToggle');
+    const themeToggle = document.getElementById('themeToggle');
+    const fontDecrease = document.getElementById('fontDecrease');
+    const fontIncrease = document.getElementById('fontIncrease');
+    const fontSizeDisplay = document.getElementById('fontSizeDisplay');
+
+    const panels = {
+      left: {
+        side: 'left',
+        panel: document.getElementById('leftPanel'),
+        zone: document.getElementById('leftZone'),
+        scroll: document.getElementById('leftScroll'),
+        shell: document.getElementById('leftShell'),
+        wrap: document.getElementById('leftWrap'),
+        gutter: document.getElementById('leftGutter'),
+        code: document.getElementById('leftCode'),
+        input: document.getElementById('leftInput'),
+        badge: document.getElementById('leftLang'),
+        currentLine: document.getElementById('leftCurrentLine'),
+        save: document.getElementById('leftSave'),
+        filename: 'left.txt',
+        originalText: '',
+        lineCount: 1,
+        currentLineIndex: 1
+      },
+      right: {
+        side: 'right',
+        panel: document.getElementById('rightPanel'),
+        zone: document.getElementById('rightZone'),
+        scroll: document.getElementById('rightScroll'),
+        shell: document.getElementById('rightShell'),
+        wrap: document.getElementById('rightWrap'),
+        gutter: document.getElementById('rightGutter'),
+        code: document.getElementById('rightCode'),
+        input: document.getElementById('rightInput'),
+        badge: document.getElementById('rightLang'),
+        currentLine: document.getElementById('rightCurrentLine'),
+        save: document.getElementById('rightSave'),
+        filename: 'right.txt',
+        originalText: '',
+        lineCount: 1,
+        currentLineIndex: 1
+      }
+    };
+
+    let syncing = false;
+    let heightSyncFrame = 0;
+
+    function detectLanguage(filename) {
+      const lower = (filename || '').toLowerCase();
+      const ext = lower.includes('.') ? lower.split('.').pop() : 'txt';
+      const map = {
+        txt: 'text', js: 'javascript', jsx: 'jsx', ts: 'typescript', tsx: 'tsx',
+        html: 'markup', htm: 'markup', xml: 'markup', css: 'css', json: 'json',
+        py: 'python', java: 'java', c: 'c', h: 'c', cpp: 'cpp', hpp: 'cpp',
+        go: 'go', rs: 'rust', md: 'markdown'
+      };
+      return map[ext] || 'text';
+    }
+
+    function setLanguage(panel, language) {
+      panel.code.className = 'language-' + language;
+      panel.badge.textContent = language.toUpperCase();
+      panel.language = language;
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function buildLineNumbers(panel) {
+      const lineCount = Math.max(1, panel.input.value.split('\n').length);
+      const fragment = document.createDocumentFragment();
+      panel.lineCount = lineCount;
+      for (let i = 1; i <= lineCount; i += 1) {
+        const line = document.createElement('span');
+        line.className = 'line-number' + (i === panel.currentLineIndex ? ' active' : '');
+        line.textContent = i;
+        fragment.appendChild(line);
+      }
+      panel.gutter.replaceChildren(fragment);
+    }
+
+    function renderHighlightedCode(panel) {
+      const text = panel.input.value;
+      const grammar = Prism.languages[panel.language];
+      panel.code.innerHTML = text.length
+        ? (grammar ? Prism.highlight(text, grammar, panel.language) : escapeHtml(text))
+        : ' ';
+    }
+
+    function getMetrics(panel) {
+      const styles = getComputedStyle(panel.input);
+      const fontSize = parseFloat(styles.fontSize) || DEFAULT_FONT_SIZE;
+      let lineHeight = parseFloat(styles.lineHeight);
+      if (!Number.isFinite(lineHeight)) {
+        lineHeight = fontSize * 1.75;
+      }
+      const paddingTop = parseFloat(styles.paddingTop) || 0;
+      const paddingBottom = parseFloat(styles.paddingBottom) || 0;
+      return { fontSize, lineHeight, paddingTop, paddingBottom };
+    }
+
+    function updateCurrentLine(panel) {
+      const value = panel.input.value;
+      const start = panel.input.selectionStart || 0;
+      let line = 1;
+      for (let i = 0; i < start; i += 1) {
+        if (value.charCodeAt(i) === 10) line += 1;
+      }
+      panel.currentLineIndex = line;
+      const metrics = getMetrics(panel);
+      panel.currentLine.style.top = (metrics.paddingTop + ((line - 1) * metrics.lineHeight)) + 'px';
+      const nodes = panel.gutter.children;
+      for (let i = 0; i < nodes.length; i += 1) {
+        nodes[i].classList.toggle('active', i === line - 1);
+      }
+    }
+
+    function syncEditorDimensions(panel) {
+      const metrics = getMetrics(panel);
+      const contentHeight = Math.ceil((panel.lineCount * metrics.lineHeight) + metrics.paddingTop + metrics.paddingBottom);
+      panel.wrap.style.minHeight = contentHeight + 'px';
+      panel.input.style.height = contentHeight + 'px';
+      panel.code.parentElement.style.minHeight = contentHeight + 'px';
+    }
+
+    function syncPanelHeights() {
+      panels.left.shell.style.minHeight = '';
+      panels.right.shell.style.minHeight = '';
+      const targetHeight = Math.max(
+        panels.left.wrap.offsetHeight,
+        panels.right.wrap.offsetHeight,
+        panels.left.scroll.clientHeight,
+        panels.right.scroll.clientHeight
+      );
+      panels.left.shell.style.minHeight = targetHeight + 'px';
+      panels.right.shell.style.minHeight = targetHeight + 'px';
+    }
+
+    function queueHeightSync() {
+      if (heightSyncFrame) cancelAnimationFrame(heightSyncFrame);
+      heightSyncFrame = requestAnimationFrame(function () {
+        heightSyncFrame = 0;
+        syncEditorDimensions(panels.left);
+        syncEditorDimensions(panels.right);
+        syncPanelHeights();
+      });
+    }
+
+    function updateDirtyState(panel) {
+      const dirty = panel.input.value !== panel.originalText;
+      panel.save.classList.toggle('visible', dirty);
+      panel.panel.classList.toggle('empty', panel.input.value.length === 0);
+    }
+
+    function refreshPanel(panel, options) {
+      const preserveScroll = options && options.preserveScroll;
+      const previousTop = panel.scroll.scrollTop;
+      const previousLeft = panel.scroll.scrollLeft;
+      buildLineNumbers(panel);
+      renderHighlightedCode(panel);
+      updateCurrentLine(panel);
+      queueHeightSync();
+      updateDirtyState(panel);
+      if (preserveScroll) {
+        panel.scroll.scrollTop = previousTop;
+        panel.scroll.scrollLeft = previousLeft;
+      }
+    }
+
+    function setPanelContent(panel, text, filename, markClean) {
+      const safeText = typeof text === 'string' ? text : '';
+      panel.filename = filename || panel.filename;
+      setLanguage(panel, detectLanguage(panel.filename));
+      panel.input.value = safeText;
+      if (markClean) panel.originalText = safeText;
+      panel.currentLineIndex = 1;
+      refreshPanel(panel, { preserveScroll: false });
+      panel.scroll.scrollTop = 0;
+      panel.scroll.scrollLeft = 0;
+    }
+
+    function readTextFile(file, side) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (event) {
+        setPanelContent(panels[side], String(event.target.result || ''), file.name, true);
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    function syncScroll(source, target) {
+      if (!syncToggle.checked || syncing) return;
+      syncing = true;
+      const targetMaxTop = Math.max(0, target.scrollHeight - target.clientHeight);
+      const targetMaxLeft = Math.max(0, target.scrollWidth - target.clientWidth);
+      target.scrollTop = Math.min(source.scrollTop, targetMaxTop);
+      target.scrollLeft = Math.min(source.scrollLeft, targetMaxLeft);
+      requestAnimationFrame(function () {
+        syncing = false;
+      });
+    }
+
+    function attachDrop(side) {
+      const panel = panels[side];
+      ['dragenter', 'dragover'].forEach(function (name) {
+        panel.zone.addEventListener(name, function (event) {
+          event.preventDefault();
+          panel.zone.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'dragend'].forEach(function (name) {
+        panel.zone.addEventListener(name, function () {
+          panel.zone.classList.remove('dragover');
+        });
+      });
+      panel.zone.addEventListener('drop', function (event) {
+        event.preventDefault();
+        panel.zone.classList.remove('dragover');
+        const file = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files[0] : null;
+        readTextFile(file, side);
+      });
+    }
+
+    function applyTheme(theme) {
+      const normalized = theme === 'light' ? 'light' : 'dark';
+      root.setAttribute('data-theme', normalized);
+      themeToggle.setAttribute('aria-pressed', String(normalized === 'dark'));
+      themeToggle.setAttribute('title', normalized === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+      localStorage.setItem(STORAGE_KEYS.theme, normalized);
+    }
+
+    function getStoredFontSize() {
+      const value = Number(localStorage.getItem(STORAGE_KEYS.fontSize));
+      if (Number.isFinite(value)) {
+        return Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, value));
+      }
+      return DEFAULT_FONT_SIZE;
+    }
+
+    function applyFontSize(size) {
+      const next = Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, size));
+      root.style.setProperty('--code-font-size', next + 'px');
+      fontSizeDisplay.textContent = next + 'px';
+      localStorage.setItem(STORAGE_KEYS.fontSize, String(next));
+      queueHeightSync();
+      updateCurrentLine(panels.left);
+      updateCurrentLine(panels.right);
+    }
+
+    function downloadText(filename, text) {
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'edited.txt';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    }
+
+    function savePanel(panel) {
+      downloadText(panel.filename, panel.input.value);
+      panel.originalText = panel.input.value;
+      updateDirtyState(panel);
+    }
+
+    function handleInputEvent(panel) {
+      refreshPanel(panel, { preserveScroll: true });
+    }
+
+    function handleSelectionEvent(panel) {
+      updateCurrentLine(panel);
+    }
+
+    function insertTab(panel) {
+      const input = panel.input;
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      const value = input.value;
+      input.value = value.slice(0, start) + '  ' + value.slice(end);
+      input.selectionStart = input.selectionEnd = start + 2;
+      handleInputEvent(panel);
+    }
+
+    panels.left.scroll.addEventListener('scroll', function () {
+      syncScroll(panels.left.scroll, panels.right.scroll);
+    });
+    panels.right.scroll.addEventListener('scroll', function () {
+      syncScroll(panels.right.scroll, panels.left.scroll);
+    });
+
+    Object.values(panels).forEach(function (panel) {
+      panel.input.addEventListener('input', function () { handleInputEvent(panel); });
+      panel.input.addEventListener('click', function () { handleSelectionEvent(panel); });
+      panel.input.addEventListener('keyup', function () { handleSelectionEvent(panel); });
+      panel.input.addEventListener('select', function () { handleSelectionEvent(panel); });
+      panel.input.addEventListener('focus', function () { handleSelectionEvent(panel); });
+      panel.input.addEventListener('keydown', function (event) {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+          event.preventDefault();
+          savePanel(panel);
+          return;
+        }
+        if (event.key === 'Tab') {
+          event.preventDefault();
+          insertTab(panel);
+        }
+      });
+      panel.save.addEventListener('click', function () { savePanel(panel); });
+    });
+
+    leftFile.addEventListener('change', function (event) {
+      readTextFile(event.target.files[0], 'left');
+    });
+    rightFile.addEventListener('change', function (event) {
+      readTextFile(event.target.files[0], 'right');
+    });
+
+    loadSample.addEventListener('click', function () {
+      setPanelContent(
+        panels.left,
+        [
+          'const message = "Show line numbers and syntax highlighting like VSCode";',
+          'function hello(name) {',
+          '  return `Hello, ${name}`;',
+          '}'
+        ].join('\n'),
+        'sample.js',
+        true
+      );
+      setPanelContent(
+        panels.right,
+        [
+          'Right panel sample:',
+          '1. Drag and drop supported',
+          '2. Direct editing and saving',
+          '3. Current-line highlight'
+        ].join('\n'),
+        'sample.txt',
+        true
+      );
+    });
+
+    clearAll.addEventListener('click', function () {
+      setPanelContent(panels.left, '', 'left.txt', true);
+      setPanelContent(panels.right, '', 'right.txt', true);
+    });
+
+    fontDecrease.addEventListener('click', function () {
+      applyFontSize(getStoredFontSize() - 1);
+    });
+    fontIncrease.addEventListener('click', function () {
+      applyFontSize(getStoredFontSize() + 1);
+    });
+    themeToggle.addEventListener('click', function () {
+      const current = root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+      applyTheme(current === 'light' ? 'dark' : 'light');
+    });
+
+    window.addEventListener('resize', function () {
+      queueHeightSync();
+      updateCurrentLine(panels.left);
+      updateCurrentLine(panels.right);
+    });
+
+    attachDrop('left');
+    attachDrop('right');
+    applyTheme(localStorage.getItem(STORAGE_KEYS.theme) || 'dark');
+    applyFontSize(getStoredFontSize());
+    loadSample.click();
+  </script>
+</body>
+</html>
