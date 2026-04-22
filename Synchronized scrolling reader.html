@@ -661,7 +661,11 @@
       <input type="checkbox" id="syncToggle" checked />
       Sync Scroll
     </label>
-    <span class="hint">Supports direct editing, current-line highlight, floating save buttons, light/dark mode, and strict sync scroll</span>
+    <label>
+      <input type="checkbox" id="syncHorizontalToggle" />
+      Sync Horizontal
+    </label>
+    <span class="hint">Supports direct editing, current-line highlight, floating save buttons, light/dark mode, vertical sync scroll, and optional horizontal sync</span>
   </div>
 
   <div class="viewer">
@@ -744,6 +748,7 @@
     const leftPickerName = document.getElementById('leftPickerName');
     const rightPickerName = document.getElementById('rightPickerName');
     const syncToggle = document.getElementById('syncToggle');
+    const syncHorizontalToggle = document.getElementById('syncHorizontalToggle');
     const themeToggle = document.getElementById('themeToggle');
     const fontDecrease = document.getElementById('fontDecrease');
     const fontIncrease = document.getElementById('fontIncrease');
@@ -939,12 +944,20 @@
     }
 
     function syncScroll(source, target) {
-      if (!syncToggle.checked || syncing) return;
+      if (syncing) return;
+      if (!syncToggle.checked && !syncHorizontalToggle.checked) return;
       syncing = true;
-      const targetMaxTop = Math.max(0, target.scrollHeight - target.clientHeight);
-      const targetMaxLeft = Math.max(0, target.scrollWidth - target.clientWidth);
-      target.scrollTop = Math.min(source.scrollTop, targetMaxTop);
-      target.scrollLeft = Math.min(source.scrollLeft, targetMaxLeft);
+
+      if (syncToggle.checked) {
+        const targetMaxTop = Math.max(0, target.scrollHeight - target.clientHeight);
+        target.scrollTop = Math.min(source.scrollTop, targetMaxTop);
+      }
+
+      if (syncHorizontalToggle.checked) {
+        const targetMaxLeft = Math.max(0, target.scrollWidth - target.clientWidth);
+        target.scrollLeft = Math.min(source.scrollLeft, targetMaxLeft);
+      }
+
       requestAnimationFrame(function () {
         syncing = false;
       });
